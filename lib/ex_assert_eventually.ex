@@ -1,0 +1,120 @@
+defmodule AssertEventually do
+  @moduledoc """
+  `AssertEventually` allows to use standard ExUnit assertions along with expressions that may
+  fail several times until they **eventually** succeed.
+  In order to use macros from this module, you first need to `use AssertEventually` in you test case.
+  On-use, you can provide two options:
+   * `timeout` - default time after which your assertions will stop ignoring errors (can be set individually for each assert)
+   * `interval` - time before retring your expression after previous one fails
+
+  All provided times are milliseconds.
+
+   Examples:
+
+   ```
+   defmodule MyApp.SomeTest do
+     use ExUnit.Case, async: true
+
+     # Fail after 50ms of retrying with time between attempts 5ms
+     use AssertEventually, timeout: 50, interval: 5
+
+     test "my test with" do
+       assert_eventually {:ok, %{some: value}} = {:ok, %{some: :real_value, other: :value}}
+     end
+   end
+  """
+
+  defmacro __using__(opts) do
+    quote do
+      import ExUnit.Assertions
+      import unquote(__MODULE__)
+
+      Module.put_attribute(
+        __MODULE__,
+        :assert_eventually_timeout,
+        unquote(opts)[:timeout] || :timer.seconds(1)
+      )
+
+      Module.put_attribute(
+        __MODULE__,
+        :assert_eventually_interval,
+        unquote(opts)[:interval] || 20
+      )
+    end
+  end
+
+  @doc """
+  This macro should be used with other ExUnit macros to allow the original
+  asserion to fail for a given period of time. First argument should always be a ExUnit `assert`-like
+  macro call with all its arguments, while second argument is optional timeout (default 1000ms)
+  Let's say, you have complex system that can be started with `start_supervised(ComplexSystem)`.
+  `ComplexSystem` has some things to take care of before it's fully operational and can actually return
+  something meaningful with `ComplexSystem.get_value()`. `eventually` allows to verify the return value
+  when you don't really care how much time exactly it took the `ComplexSystem` to start until this time is
+  "resonable". To implement such test, you can do the following:
+
+  ```
+  test "get meaningful value" do
+    {:ok, _pid} = start_supervised(ComplexSystem)
+    eventually assert {:ok, value} = ComplexSystem.get_value()
+    assert value == 42
+  end
+  ```
+
+  The code above will try running the given expression (match in this case) for some time (1000ms here - default).
+  If it's successful within the given time, the behaviour will be the same as normal `assert` macro. If the expression will
+  fail for at least the time given as `timeout`, the behaviour will also be the same as normal `assert` macro.
+
+  This macro can be used with any ExUnit `assert`-like macro:
+
+  ```
+  test "get meaningful value" do
+    {:ok, _pid} = start_supervised(ComplexSystem)
+    eventually assert_in_delta 42, ComplexSystem.get_value(), 0
+  end
+  ```
+  """
+  defmacro eventually({assert_call, meta, args}, timeout \\ nil) do
+    timeout = timeout || Module.get_attribute(__CALLER__.module, :assert_eventually_timeout)
+    eventually_impl(assert_call, meta, args, timeout)
+  end
+
+  @doc """
+  @equiv eventually(assert(expr), timeout)
+  """
+  defmacro assert_eventually(assertion, timeout \\ nil) do
+    timeout = timeout || Module.get_attribute(__CALLER__.module, :assert_eventually_timeout)
+    assert_call = {:., [], [{:__aliases__, [alias: false], [:ExUnit, :Assertions]}, :assert]}
+
+    args =
+      if is_list(assertion) do
+        assertion
+      else
+        [assertion]
+      end
+
+    eventually_impl(assert_call, [], args, timeout)
+  end
+
+  defp eventually_impl(assert_call, meta, args, timeout) do
+    # IO.inspect(args)
+    assert = {assert_call, meta, args}
+
+    quote do
+      fun = fn f, start_time ->
+        if :os.system_time(:millisecond) - start_time <= unquote(timeout) do
+          try do
+            unquote(assert)
+          catch
+            _, _ ->
+              Process.sleep(@assert_eventually_interval)
+              f.(f, start_time)
+          end
+        end
+      end
+
+      fun.(fun, :os.system_time(:millisecond))
+      unquote(assert)
+    end
+  end
+end
