@@ -1,4 +1,5 @@
 # AssertEventually
+[![CircleCI](https://circleci.com/gh/rslota/ex_assert_eventually.svg?style=svg)](https://circleci.com/gh/rslota/ex_assert_eventually)
 
 Very simple test helper for Elixir's ExUnit framework that allows to use standard ExUnit assertions along with expressions that may
 fail several times until they **eventually** succeed.
@@ -14,7 +15,7 @@ The package can be installed by adding `assert_eventually` to your list of depen
 ```elixir
 def deps do
   [
-    {:assert_eventually, "~> 0.1.0", only: :test}
+    {:assert_eventually, "~> 0.2.0", only: :test}
   ]
 end
 ```
@@ -28,7 +29,7 @@ Here you go (just replace `ComplexSystem` with something of yours):
 defmodule MyApp.SomeTest do
   use ExUnit.Case, async: true
 
-  # Fail after 50ms of retrying with time between attempts 5ms
+  # Fail after 50ms of retrying with 5ms time between attempts
   use AssertEventually, timeout: 50, interval: 5
 
   test "get meaningful value by using normal assert" do

@@ -92,8 +92,14 @@ defmodule AssertEventually do
   """
   defmacro assert_eventually(expr, timeout \\ nil) do
     timeout = timeout || Module.get_attribute(__CALLER__.module, :assert_eventually_timeout)
-    assert_call = {:., [], [{:__aliases__, [alias: false], [:ExUnit, :Assertions]}, :assert]}
 
+    {assert_call, _, _} =
+      quote do
+        ExUnit.Assertions.assert()
+      end
+
+    # List.wrap/1 can't be used here, as it returns empty list when input is `nil`
+    # while here, we really need to get `[nil]` instead.
     args =
       if is_list(expr) do
         expr
@@ -105,24 +111,30 @@ defmodule AssertEventually do
   end
 
   defp eventually_impl(assert_call, meta, args, timeout) do
-    # IO.inspect(args)
     assert = {assert_call, meta, args}
 
     quote do
       fun = fn f, start_time ->
-        if :os.system_time(:millisecond) - start_time <= unquote(timeout) do
+        if unquote(now_ts()) - start_time <= unquote(timeout) do
           try do
             unquote(assert)
           catch
-            _, _ ->
+            _type, _reason ->
               Process.sleep(@assert_eventually_interval)
               f.(f, start_time)
           end
         end
       end
 
-      fun.(fun, :os.system_time(:millisecond))
+      # pass defined function as argument to itself to allow for recursion
+      fun.(fun, unquote(now_ts()))
       unquote(assert)
+    end
+  end
+
+  defp now_ts() do
+    quote do
+      :erlang.monotonic_time(:millisecond)
     end
   end
 end
