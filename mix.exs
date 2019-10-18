@@ -3,12 +3,16 @@ defmodule ExAssertEventually.MixProject do
 
   def project do
     [
-      app: :ex_assert_eventually,
+      app: :assert_eventually,
       version: "0.1.0",
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      elixirc_paths: elixirc_paths(Mix.env())
+      elixirc_paths: elixirc_paths(Mix.env()),
+      package: package(),
+      description: description(),
+      name: "AssertEventually",
+      source_url: source_url()
     ]
   end
 
@@ -19,11 +23,25 @@ defmodule ExAssertEventually.MixProject do
     ]
   end
 
+  defp package() do
+    [
+      name: "assert_eventually",
+      files: ~w(lib .formatter.exs mix.exs README* LICENSE*),
+      licenses: ["Apache-2.0"],
+      links: %{"GitHub" => source_url()}
+    ]
+  end
+
+  defp source_url(), do: "https://github.com/rslota/ex_assert_eventually"
+
+  defp description() do
+    "A few sentences (a paragraph) describing the project."
+  end
+
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+      {:ex_doc, ">= 0.0.0", runtime: false}
     ]
   end
 
