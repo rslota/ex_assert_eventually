@@ -2,6 +2,7 @@ defmodule AssertEventually do
   @moduledoc """
   `AssertEventually` allows to use standard ExUnit assertions along with expressions that may
   fail several times until they **eventually** succeed.
+
   In order to use macros from this module, you first need to `use AssertEventually` in you test case.
   On-use, you can provide two options:
    * `timeout` - default time after which your assertions will stop ignoring errors (can be set individually for each assert)
@@ -45,17 +46,23 @@ defmodule AssertEventually do
 
   @doc """
   This macro should be used with other ExUnit macros to allow the original
-  asserion to fail for a given period of time. First argument should always be a ExUnit `assert`-like
-  macro call with all its arguments, while second argument is optional timeout (default 1000ms)
+  `assert_expr` to fail for a given period of time (`timeout`).
+
+  First argument should always be a ExUnit `assert`-like macro call with all its arguments,
+  while second argument is optional timeout (default 1000ms). For more details on default `timeout`
+  value and other available options, please refer to module docs.
+
+  ## Usage use-case / example:
   Let's say, you have complex system that can be started with `start_supervised(ComplexSystem)`.
   `ComplexSystem` has some things to take care of before it's fully operational and can actually return
-  something meaningful with `ComplexSystem.get_value()`. `eventually` allows to verify the return value
-  when you don't really care how much time exactly it took the `ComplexSystem` to start until this time is
+  something meaningful with `ComplexSystem.get_value()`. `eventually/2` allows to verify the return value
+  when you don't really care how much time exactly it took the `ComplexSystem` to start as long this time is
   "resonable". To implement such test, you can do the following:
 
   ```
   test "get meaningful value" do
     {:ok, _pid} = start_supervised(ComplexSystem)
+
     eventually assert {:ok, value} = ComplexSystem.get_value()
     assert value == 42
   end
@@ -70,27 +77,28 @@ defmodule AssertEventually do
   ```
   test "get meaningful value" do
     {:ok, _pid} = start_supervised(ComplexSystem)
-    eventually assert_in_delta 42, ComplexSystem.get_value(), 0
+
+    eventually assert_in_delta 42, elem(ComplexSystem.get_value(), 1), 0
   end
   ```
   """
-  defmacro eventually({assert_call, meta, args}, timeout \\ nil) do
+  defmacro eventually({assert_call, meta, args} = _assert_expr, timeout \\ nil) do
     timeout = timeout || Module.get_attribute(__CALLER__.module, :assert_eventually_timeout)
     eventually_impl(assert_call, meta, args, timeout)
   end
 
   @doc """
-  @equiv eventually(assert(expr), timeout)
+  Equivalent to: `eventually(assert(expr), timeout)`
   """
-  defmacro assert_eventually(assertion, timeout \\ nil) do
+  defmacro assert_eventually(expr, timeout \\ nil) do
     timeout = timeout || Module.get_attribute(__CALLER__.module, :assert_eventually_timeout)
     assert_call = {:., [], [{:__aliases__, [alias: false], [:ExUnit, :Assertions]}, :assert]}
 
     args =
-      if is_list(assertion) do
-        assertion
+      if is_list(expr) do
+        expr
       else
-        [assertion]
+        [expr]
       end
 
     eventually_impl(assert_call, [], args, timeout)
