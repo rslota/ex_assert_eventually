@@ -4,7 +4,7 @@ defmodule ExAssertEventually.MixProject do
   def project do
     [
       app: :assert_eventually,
-      version: "0.2.0",
+      version: "0.2.1",
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -41,7 +41,7 @@ defmodule ExAssertEventually.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ex_doc, ">= 0.0.0", runtime: false}
+      {:ex_doc, ">= 0.0.0", runtime: false, optional: true}
     ]
   end
 
