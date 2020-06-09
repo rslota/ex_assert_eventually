@@ -20,6 +20,12 @@ def deps do
 end
 ```
 
+AssertEventually is usually added only to the :test environment since it's used in tests. To also import AssertEventually's formatter configuration, add the :dev environment as well as :test for `assert_eventually` and add :assert_eventually to your .formatter.exs:
+
+[
+  import_deps: [:assert_eventually]
+]
+
 ## Just tell me how to use it already...
 
 

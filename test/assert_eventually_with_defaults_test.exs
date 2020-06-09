@@ -14,7 +14,7 @@ defmodule AssertEventually.WithDefaultsTest do
       {:ok, mock} =
         start_supervised({MockOperation, [success_return: 50, failure_return: 10, fail_times: 4]})
 
-      eventually(assert_in_delta 53, MockOperation.do_something(mock), 5)
+      eventually assert_in_delta 53, MockOperation.do_something(mock), 5
     end
   end
 
@@ -36,7 +36,7 @@ defmodule AssertEventually.WithDefaultsTest do
         )
 
       try do
-        eventually(assert_in_delta(53, MockOperation.do_something(mock), 5), 40)
+        eventually assert_in_delta(53, MockOperation.do_something(mock), 5), 40
         flunk("Should've thrown ExUnit.AssertionError")
       catch
         _type, %ExUnit.AssertionError{} ->
@@ -58,7 +58,7 @@ defmodule AssertEventually.WithDefaultsTest do
 
     test "when trivial match is passed" do
       returne_value =
-        assert_eventually({:ok, %{some: value}} = {:ok, %{some: :real_value, other: :value}})
+        assert_eventually {:ok, %{some: value}} = {:ok, %{some: :real_value, other: :value}}
 
       assert returne_value == {:ok, %{some: :real_value, other: :value}}
       assert value == :real_value
@@ -70,7 +70,7 @@ defmodule AssertEventually.WithDefaultsTest do
           {MockOperation, [success_return: :ok, failure_return: :error, fail_times: 10]}
         )
 
-      returne_value = assert_eventually(:ok = MockOperation.do_something(mock), 1000)
+      returne_value = assert_eventually :ok = MockOperation.do_something(mock), 1000
 
       assert returne_value == :ok
 
@@ -85,7 +85,7 @@ defmodule AssertEventually.WithDefaultsTest do
           {MockOperation, [success_return: :ok, failure_return: :error, succeed_after: 500]}
         )
 
-      returne_value = assert_eventually(:ok = MockOperation.do_something(mock))
+      returne_value = assert_eventually :ok = MockOperation.do_something(mock)
       assert returne_value == :ok
 
       stats = MockOperation.get_stats(mock)
@@ -99,7 +99,7 @@ defmodule AssertEventually.WithDefaultsTest do
           {MockOperation, [success_return: :ok, failure_return: :error, succeed_after: 900]}
         )
 
-      returne_value = assert_eventually(:ok = MockOperation.do_something(mock), 1000)
+      returne_value = assert_eventually :ok = MockOperation.do_something(mock), 1000
 
       assert returne_value == :ok
     end
@@ -117,7 +117,7 @@ defmodule AssertEventually.WithDefaultsTest do
     test "when trivial match is passed" do
       e =
         assert_raise ExUnit.AssertionError, fn ->
-          assert_eventually({:ok, _} = {:error, :something}, 20)
+          assert_eventually {:ok, _} = {:error, :something}, 20
         end
 
       assert e.right == {:error, :something}
@@ -132,7 +132,7 @@ defmodule AssertEventually.WithDefaultsTest do
 
       e =
         assert_raise ExUnit.AssertionError, fn ->
-          assert_eventually(:ok = MockOperation.do_something(mock), 200)
+          assert_eventually :ok = MockOperation.do_something(mock), 200
         end
 
       assert e.right == :error
@@ -147,7 +147,7 @@ defmodule AssertEventually.WithDefaultsTest do
 
       e =
         assert_raise ExUnit.AssertionError, fn ->
-          assert_eventually(:ok = MockOperation.do_something(mock), 200)
+          assert_eventually :ok = MockOperation.do_something(mock), 200
         end
 
       assert e.right == :error

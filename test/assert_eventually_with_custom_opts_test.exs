@@ -14,7 +14,7 @@ defmodule AssertEventually.WithCustomOptsTest do
 
       e =
         assert_raise ExUnit.AssertionError, fn ->
-          assert_eventually(:ok = MockOperation.do_something(mock))
+          assert_eventually :ok = MockOperation.do_something(mock)
         end
 
       assert e.right == :error
@@ -32,7 +32,7 @@ defmodule AssertEventually.WithCustomOptsTest do
 
       e =
         assert_raise ExUnit.AssertionError, fn ->
-          assert_eventually(:ok = MockOperation.do_something(mock))
+          assert_eventually :ok = MockOperation.do_something(mock)
         end
 
       assert e.right == :error
