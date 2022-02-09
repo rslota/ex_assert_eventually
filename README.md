@@ -15,7 +15,7 @@ The package can be installed by adding `assert_eventually` to your list of depen
 ```elixir
 def deps do
   [
-    {:assert_eventually, "~> 0.3.0", only: :test}
+    {:assert_eventually, "~> 1.0.0", only: :test}
   ]
 end
 ```

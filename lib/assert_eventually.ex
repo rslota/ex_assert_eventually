@@ -84,7 +84,7 @@ defmodule AssertEventually do
   """
   defmacro eventually({assert_call, meta, args} = _assert_expr, timeout \\ nil) do
     timeout = timeout || Module.get_attribute(__CALLER__.module, :assert_eventually_timeout)
-    eventually_impl(assert_call, meta, args, timeout)
+    eventually_impl(assert_call, meta, args, timeout, __CALLER__)
   end
 
   @doc """
@@ -107,107 +107,88 @@ defmodule AssertEventually do
         [expr]
       end
 
-    eventually_impl(assert_call, [], args, timeout)
+    eventually_impl(assert_call, [], args, timeout, __CALLER__)
   end
 
-  defp eventually_impl(assert_call, meta, [{:=, opts, [variable, rest]}], timeout) do
-    ignored_variable = neutralize_variable(variable)
-    neutral_assignment_ast = [{:=, opts, [ignored_variable, rest]}]
-    assert = {assert_call, meta, neutral_assignment_ast}
-
-    quote do
-      fun = unquote(eventually_impl_fun_definition(assert, timeout))
-
-      # pass defined function as argument to itself to allow for recursion
-      result = fun.(fun, unquote(now_ts()))
-      unquote({:=, opts, [variable, {:result, [], AssertEventually}]})
-    end
-  end
-
-  defp eventually_impl(assert_call, meta, args, timeout) do
+  defp eventually_impl(assert_call, meta, args, timeout, caller) do
     assert = {assert_call, meta, args}
+    result_var = Macro.var(:result, unquote(__MODULE__))
+
+    vars =
+      assert
+      |> Macro.expand(caller)
+      |> collect_left_hand_sides()
+      |> List.foldl([], fn lhs, acc ->
+        collect_all_local_vars(lhs) ++ acc
+      end)
+      |> Enum.uniq()
 
     quote do
-      fun = unquote(eventually_impl_fun_definition(assert, timeout))
+      fun = unquote(eventually_impl_fun_definition(assert, vars, timeout))
 
-      # pass defined function as argument to itself to allow for recursion
-      fun.(fun, unquote(now_ts()))
+      # We pass defined function as argument to itself to allow for recursion.
+      # Also, to all variables found in macro arguments we assign their values
+      # captured by loop-function.
+      {unquote(result_var), unquote(vars)} = fun.(fun, unquote(now_ts()))
+      unquote(result_var)
     end
   end
 
-  defp eventually_impl_fun_definition(assert, timeout) do
+  defp eventually_impl_fun_definition(assert, vars, timeout) do
     quote do
       fn f, start_time ->
         if unquote(now_ts()) - start_time <= unquote(timeout) do
           try do
-            unquote(assert)
+            result = unquote(assert)
+            # in addition to result we return values of all variables detected in macro arguments
+            {result, unquote(mark_as_generated(vars))}
           catch
             _type, _reason ->
               Process.sleep(@assert_eventually_interval)
               f.(f, start_time)
           end
         else
-          unquote(assert)
+          result = unquote(assert)
+          {result, unquote(mark_as_generated(vars))}
         end
       end
     end
   end
 
-  # lists
-  defp neutralize_variable(list) when is_list(list) do
-    Enum.map(list, &neutralize_variable/1)
-  end
-
-  # pinned values
-  defp neutralize_variable({:^, meta, values}) do
-    {:^, meta, values}
-  end
-
-  # lists with head separator
-  defp neutralize_variable({:|, meta, values}) do
-    {:|, meta, Enum.map(values, &neutralize_variable/1)}
-  end
-
-  # tuples
-  defp neutralize_variable({:{}, meta, rest}) do
-    {:{}, meta, Enum.map(rest, &neutralize_variable/1)}
-  end
-
-  # Exception - 2-elem tuples are represented as-is in AST
-  defp neutralize_variable({part1, part2}) do
-    {neutralize_variable(part1), neutralize_variable(part2)}
-  end
-
-  # maps
-  defp neutralize_variable({:%{}, meta, content}) do
-    {:%{}, meta,
-     Enum.map(content, fn
-       {key, variable} -> {key, neutralize_variable(variable)}
-     end)}
-  end
-
-  # structs
-  defp neutralize_variable({:%, meta, [aliases, map]}) do
-    {:%, meta, [aliases, neutralize_variable(map)]}
-  end
-
-  # variables
-  defp neutralize_variable({atom, meta, module}) when is_atom(atom) do
-    string_value = Atom.to_string(atom)
-
-    if String.starts_with?(string_value, "_") do
-      {atom, meta, module}
-    else
-      {:"_#{string_value}", meta, module}
-    end
-  end
-
-  # base values
-  defp neutralize_variable(variable), do: variable
-
   defp now_ts() do
     quote do
       :erlang.monotonic_time(:millisecond)
     end
+  end
+
+  defp collect_left_hand_sides(expr) do
+    expr
+    |> Macro.prewalk([], fn
+      {:=, _, [left, _right]} = node, acc ->
+        {node, [left | acc]}
+
+      node, acc ->
+        {node, acc}
+    end)
+    |> elem(1)
+  end
+
+  defp collect_all_local_vars(ast) do
+    Macro.prewalk(ast, [], fn
+      {name, meta, nil} = node, acc when is_atom(name) ->
+        if String.starts_with?(to_string(name), "_") do
+          {node, acc}
+        else
+          {:ok, [{name, meta, nil} | acc]}
+        end
+
+      node, acc ->
+        {node, acc}
+    end)
+    |> elem(1)
+  end
+
+  defp mark_as_generated(vars) do
+    for {name, meta, context} <- vars, do: {name, [generated: true] ++ meta, context}
   end
 end

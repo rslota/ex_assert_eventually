@@ -5,6 +5,43 @@ defmodule AssertEventually.WithDefaultsTest do
 
   alias AssertEventually.Utils.MockOperation
 
+  describe "leaves properly assigned variables" do
+    test "without = operator" do
+      send(self(), {1, [2, 3], %{d: 4}})
+      eventually assert_received {a, [b, c], %{d: d}}
+
+      assert a == 1
+      assert b == 2
+      assert c == 3
+      assert d == 4
+    end
+
+    test "with = operator" do
+      eventually assert {a, [b, c], %{d: d}} = {1, [2, 3], %{d: 4}}
+      assert a == 1
+      assert b == 2
+      assert c == 3
+      assert d == 4
+    end
+
+    test "with many = operators (arguments)" do
+      eventually assert_in_delta a = 1, b = 2, c = 3
+
+      assert a == 1
+      assert b == 2
+      assert c == 3
+    end
+
+    test "with many = operators (nested)" do
+      eventually assert {a = b, [b, c], %{d: d = _e}} = {1, [1, 3], %{d: 4}}
+
+      assert a == 1
+      assert b == 1
+      assert c == 3
+      assert d == 4
+    end
+  end
+
   describe "happy case using eventually(assert_in_delta)" do
     test "when trivial range is passed" do
       eventually(assert_in_delta 5, 2, 3)
