@@ -76,7 +76,7 @@ defmodule AssertEventually.WithDefaultsTest do
 
       stats = MockOperation.get_stats(mock)
       # there should be just one call
-      assert stats.call_counter ==  1
+      assert stats.call_counter == 1
     end
 
     test "when match is successful from the first try with comparision" do
@@ -89,7 +89,7 @@ defmodule AssertEventually.WithDefaultsTest do
 
       stats = MockOperation.get_stats(mock)
       # there should be just one call
-      assert stats.call_counter ==  1
+      assert stats.call_counter == 1
     end
 
     test "when match is passed that becomes sucessful after few tries" do
