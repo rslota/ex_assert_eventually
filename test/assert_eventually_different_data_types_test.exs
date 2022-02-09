@@ -40,4 +40,19 @@ defmodule AssertEventually.DifferentDataTypesTest do
 
     assert_eventually a
   end
+
+  test "lists" do
+    assert_eventually [a, b, c] = [1, "b", :c]
+
+    assert 1 == a
+    assert "b" == b
+    assert :c == c
+
+    assert_eventually [a | b] = [1, 2, 3]
+
+    assert 1 == a
+    assert [2, 3] == b
+
+    assert_eventually [1 | [2 | [3 | _]]] = [1, 2, 3]
+  end
 end
