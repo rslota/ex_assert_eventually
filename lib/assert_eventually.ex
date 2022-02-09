@@ -158,6 +158,11 @@ defmodule AssertEventually do
     Enum.map(list, &neutralize_variable/1)
   end
 
+  # pinned values
+  defp neutralize_variable({:^, meta, values}) do
+    {:^, meta, values}
+  end
+
   # lists with head separator
   defp neutralize_variable({:|, meta, values}) do
     {:|, meta, Enum.map(values, &neutralize_variable/1)}
