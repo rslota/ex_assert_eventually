@@ -58,4 +58,13 @@ defmodule AssertEventually.DifferentDataTypesTest do
 
     assert_eventually [1 | [2 | [3 | _]]] = [1, 2, 3]
   end
+
+  test "pinned values" do
+    a = 5
+    assert_eventually ^a = 5
+    assert_eventually %{a: ^a} = %{a: 5}
+    assert_eventually %{a: ^a} = %TestStruct{a: 5}
+    assert_eventually %TestStruct{a: ^a} = %TestStruct{a: 5}
+    assert_eventually [^a, ^a, ^a] = [5, 5, 5]
+  end
 end
