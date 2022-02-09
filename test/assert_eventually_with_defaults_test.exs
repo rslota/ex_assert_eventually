@@ -14,7 +14,7 @@ defmodule AssertEventually.WithDefaultsTest do
       {:ok, mock} =
         start_supervised({MockOperation, [success_return: 50, failure_return: 10, fail_times: 4]})
 
-      eventually assert_in_delta 53, MockOperation.do_something(mock), 5
+      eventually assert_in_delta 52, MockOperation.do_something(mock), 5
     end
   end
 
@@ -76,7 +76,7 @@ defmodule AssertEventually.WithDefaultsTest do
 
       stats = MockOperation.get_stats(mock)
       # by default there should be one call each 20ms
-      assert_in_delta stats.call_counter, 11, 2
+      assert_in_delta stats.call_counter, 10, 2
     end
 
     test "when match is passed that becomes sucessful after few seconds" do

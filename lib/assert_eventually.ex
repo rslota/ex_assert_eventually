@@ -110,6 +110,35 @@ defmodule AssertEventually do
     eventually_impl(assert_call, [], args, timeout)
   end
 
+  defp eventually_impl(assert_call, meta, [{:=, opts, [variable, rest]}], timeout) do
+    ignored_variable = neutralize_variable(variable)
+    neutral_assignment_ast = [{:=, opts, [ignored_variable, {:result, [], AssertEventually}]}]
+
+    quote do
+      fun = fn f, start_time ->
+        if unquote(now_ts()) - start_time <= unquote(timeout) do
+          try do
+            result = unquote(rest)
+            unquote({assert_call, meta, neutral_assignment_ast})
+            result
+          catch
+            _type, _reason ->
+              Process.sleep(@assert_eventually_interval)
+              f.(f, start_time)
+          end
+        else
+          result = unquote(rest)
+          unquote({assert_call, meta, neutral_assignment_ast})
+          result
+        end
+      end
+
+      # pass defined function as argument to itself to allow for recursion
+      result = fun.(fun, unquote(now_ts()))
+      unquote({:=, opts, [variable, {:result, [], AssertEventually}]})
+    end
+  end
+
   defp eventually_impl(assert_call, meta, args, timeout) do
     assert = {assert_call, meta, args}
 
@@ -123,14 +152,57 @@ defmodule AssertEventually do
               Process.sleep(@assert_eventually_interval)
               f.(f, start_time)
           end
+        else
+          unquote(assert)
         end
       end
 
       # pass defined function as argument to itself to allow for recursion
       fun.(fun, unquote(now_ts()))
-      unquote(assert)
     end
   end
+
+  # lists
+  defp neutralize_variable(list) when is_list(list) do
+    Enum.map(list, &neutralize_variable/1)
+  end
+
+  # tuples
+  defp neutralize_variable({:{}, meta, rest}) do
+    {:{}, meta, Enum.map(rest, &neutralize_variable/1)}
+  end
+
+  # Exception - 2-elem tuples are represented as-is in AST
+  defp neutralize_variable({part1, part2}) do
+    {neutralize_variable(part1), neutralize_variable(part2)}
+  end
+
+  # maps
+  defp neutralize_variable({:%{}, meta, content}) do
+    {:%{}, meta,
+     Enum.map(content, fn
+       {key, variable} -> {key, neutralize_variable(variable)}
+     end)}
+  end
+
+  # structs
+  defp neutralize_variable({:%, meta, [aliases, map]}) do
+    {:%, meta, [aliases, neutralize_variable(map)]}
+  end
+
+  # variables
+  defp neutralize_variable({atom, meta, module}) when is_atom(atom) do
+    string_value = Atom.to_string(atom)
+
+    if String.starts_with?(string_value, "_") do
+      {atom, meta, module}
+    else
+      {:"_#{string_value}", meta, module}
+    end
+  end
+
+  # base values
+  defp neutralize_variable(variable), do: variable
 
   defp now_ts() do
     quote do
