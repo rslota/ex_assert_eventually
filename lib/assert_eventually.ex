@@ -113,21 +113,10 @@ defmodule AssertEventually do
   defp eventually_impl(assert_call, meta, [{:=, opts, [variable, rest]}], timeout) do
     ignored_variable = neutralize_variable(variable)
     neutral_assignment_ast = [{:=, opts, [ignored_variable, rest]}]
+    assert = {assert_call, meta, neutral_assignment_ast}
 
     quote do
-      fun = fn f, start_time ->
-        if unquote(now_ts()) - start_time <= unquote(timeout) do
-          try do
-            unquote({assert_call, meta, neutral_assignment_ast})
-          catch
-            _type, _reason ->
-              Process.sleep(@assert_eventually_interval)
-              f.(f, start_time)
-          end
-        else
-          unquote({assert_call, meta, neutral_assignment_ast})
-        end
-      end
+      fun = unquote(eventually_impl_fun_definition(assert, timeout))
 
       # pass defined function as argument to itself to allow for recursion
       result = fun.(fun, unquote(now_ts()))
@@ -139,7 +128,16 @@ defmodule AssertEventually do
     assert = {assert_call, meta, args}
 
     quote do
-      fun = fn f, start_time ->
+      fun = unquote(eventually_impl_fun_definition(assert, timeout))
+
+      # pass defined function as argument to itself to allow for recursion
+      fun.(fun, unquote(now_ts()))
+    end
+  end
+
+  defp eventually_impl_fun_definition(assert, timeout) do
+    quote do
+      fn f, start_time ->
         if unquote(now_ts()) - start_time <= unquote(timeout) do
           try do
             unquote(assert)
@@ -152,9 +150,6 @@ defmodule AssertEventually do
           unquote(assert)
         end
       end
-
-      # pass defined function as argument to itself to allow for recursion
-      fun.(fun, unquote(now_ts()))
     end
   end
 

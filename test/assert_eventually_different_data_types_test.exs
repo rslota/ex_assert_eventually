@@ -35,7 +35,10 @@ defmodule AssertEventually.DifferentDataTypesTest do
   end
 
   test "structs" do
-    assert_eventually %AssertEventually.DifferentDataTypesTest.TestStruct{a: a} = %TestStruct{a: :ok}
+    assert_eventually %AssertEventually.DifferentDataTypesTest.TestStruct{a: a} = %TestStruct{
+                        a: :ok
+                      }
+
     assert :ok == a
 
     assert_eventually a
