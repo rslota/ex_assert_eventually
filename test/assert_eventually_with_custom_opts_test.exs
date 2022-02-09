@@ -20,7 +20,7 @@ defmodule AssertEventually.WithCustomOptsTest do
       assert e.right == :error
 
       stats = MockOperation.get_stats(mock)
-      assert_in_delta stats.call_counter, 10, 2
+      assert_in_delta stats.call_counter, 9, 2
     end
 
     test "when match is passed that becomes sucessful after too much time" do
@@ -38,7 +38,7 @@ defmodule AssertEventually.WithCustomOptsTest do
       assert e.right == :error
 
       stats = MockOperation.get_stats(mock)
-      assert_in_delta stats.call_counter, 11, 2
+      assert_in_delta stats.call_counter, 10, 2
     end
   end
 end
