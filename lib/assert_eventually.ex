@@ -112,24 +112,20 @@ defmodule AssertEventually do
 
   defp eventually_impl(assert_call, meta, [{:=, opts, [variable, rest]}], timeout) do
     ignored_variable = neutralize_variable(variable)
-    neutral_assignment_ast = [{:=, opts, [ignored_variable, {:result, [], AssertEventually}]}]
+    neutral_assignment_ast = [{:=, opts, [ignored_variable, rest]}]
 
     quote do
       fun = fn f, start_time ->
         if unquote(now_ts()) - start_time <= unquote(timeout) do
           try do
-            result = unquote(rest)
             unquote({assert_call, meta, neutral_assignment_ast})
-            result
           catch
             _type, _reason ->
               Process.sleep(@assert_eventually_interval)
               f.(f, start_time)
           end
         else
-          result = unquote(rest)
           unquote({assert_call, meta, neutral_assignment_ast})
-          result
         end
       end
 

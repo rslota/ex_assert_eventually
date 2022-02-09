@@ -64,6 +64,34 @@ defmodule AssertEventually.WithDefaultsTest do
       assert value == :real_value
     end
 
+    test "when match is successful from the first try with assignment" do
+      {:ok, mock} =
+        start_supervised(
+          {MockOperation, [success_return: :ok, failure_return: :error, fail_times: 0]}
+        )
+
+      returned_value = assert_eventually :ok = MockOperation.do_something(mock), :ok
+
+      assert returned_value == :ok
+
+      stats = MockOperation.get_stats(mock)
+      # there should be just one call
+      assert stats.call_counter ==  1
+    end
+
+    test "when match is successful from the first try with comparision" do
+      {:ok, mock} =
+        start_supervised(
+          {MockOperation, [success_return: :ok, failure_return: :error, fail_times: 0]}
+        )
+
+      assert_eventually :ok == MockOperation.do_something(mock), :ok
+
+      stats = MockOperation.get_stats(mock)
+      # there should be just one call
+      assert stats.call_counter ==  1
+    end
+
     test "when match is passed that becomes sucessful after few tries" do
       {:ok, mock} =
         start_supervised(
