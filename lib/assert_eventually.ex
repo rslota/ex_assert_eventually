@@ -110,10 +110,8 @@ defmodule AssertEventually do
     eventually_impl(assert_call, [], args, timeout)
   end
 
-  defp eventually_impl(assert_call, meta, [{:=, opts, [variable, rest]}], timeout) do
-    ignored_variable = neutralize_variable(variable)
-    neutral_assignment_ast = [{:=, opts, [ignored_variable, rest]}]
-    assert = {assert_call, meta, neutral_assignment_ast}
+  defp eventually_impl(assert_call, meta, [{:=, opts, [variable, expr]}], timeout) do
+    assert = {assert_call, meta, [expr]}
 
     quote do
       fun = unquote(eventually_impl_fun_definition(assert, timeout))
@@ -152,58 +150,6 @@ defmodule AssertEventually do
       end
     end
   end
-
-  # lists
-  defp neutralize_variable(list) when is_list(list) do
-    Enum.map(list, &neutralize_variable/1)
-  end
-
-  # pinned values
-  defp neutralize_variable({:^, meta, values}) do
-    {:^, meta, values}
-  end
-
-  # lists with head separator
-  defp neutralize_variable({:|, meta, values}) do
-    {:|, meta, Enum.map(values, &neutralize_variable/1)}
-  end
-
-  # tuples
-  defp neutralize_variable({:{}, meta, rest}) do
-    {:{}, meta, Enum.map(rest, &neutralize_variable/1)}
-  end
-
-  # Exception - 2-elem tuples are represented as-is in AST
-  defp neutralize_variable({part1, part2}) do
-    {neutralize_variable(part1), neutralize_variable(part2)}
-  end
-
-  # maps
-  defp neutralize_variable({:%{}, meta, content}) do
-    {:%{}, meta,
-     Enum.map(content, fn
-       {key, variable} -> {key, neutralize_variable(variable)}
-     end)}
-  end
-
-  # structs
-  defp neutralize_variable({:%, meta, [aliases, map]}) do
-    {:%, meta, [aliases, neutralize_variable(map)]}
-  end
-
-  # variables
-  defp neutralize_variable({atom, meta, module}) when is_atom(atom) do
-    string_value = Atom.to_string(atom)
-
-    if String.starts_with?(string_value, "_") do
-      {atom, meta, module}
-    else
-      {:"_#{string_value}", meta, module}
-    end
-  end
-
-  # base values
-  defp neutralize_variable(variable), do: variable
 
   defp now_ts() do
     quote do
