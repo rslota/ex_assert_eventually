@@ -40,8 +40,6 @@ defmodule AssertEventually.DifferentDataTypesTest do
                       }
 
     assert :ok == a
-
-    assert_eventually a
   end
 
   test "lists" do
@@ -66,5 +64,17 @@ defmodule AssertEventually.DifferentDataTypesTest do
     assert_eventually %{a: ^a} = %TestStruct{a: 5}
     assert_eventually %TestStruct{a: ^a} = %TestStruct{a: 5}
     assert_eventually [^a, ^a, ^a] = [5, 5, 5]
+  end
+
+  test "binaries" do
+    n = 8
+
+    assert_eventually <<a>> = <<15>>
+    assert a == 15
+
+    assert_eventually <<a::size(n), b::8, c::16>> = <<1, 2, 3, 4>>
+    assert a == 1
+    assert b == 2
+    assert c == 772
   end
 end
